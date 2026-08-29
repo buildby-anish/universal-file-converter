@@ -1,0 +1,15 @@
+[package]
+name = "converter-adapters"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+converter-core = { path = "../converter-core" }
+thiserror.workspace = true
+log.workspace = true
+image.workspace = true
+lopdf.workspace = true
+pdf-extract.workspace = true
+printpdf = "0.7"
+which = "6.0"
