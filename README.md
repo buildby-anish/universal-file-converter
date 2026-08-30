@@ -36,23 +36,17 @@ PDF-text routes have no external runtime dependency.
 
 ## Install — a single command, nothing to install first
 
-**Once you've pushed this repo to GitHub** and edited `UFC_REPO` /
-`$UfcRepo` at the top of `scripts/install.sh` and `scripts/install.ps1` to
-your real `owner/repo` (then committed and pushed that edit), anyone can
-install `ufc` with one command — no `git clone` needed first:
+Anyone can install `ufc` with one command — no `git clone` or manual dependencies needed first:
 
 ```bash
 # macOS / Linux
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/scripts/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/buildby-anish/universal-file-converter/main/scripts/install.sh)"
 ```
 
 ```powershell
 # Windows PowerShell
-irm https://raw.githubusercontent.com/OWNER/REPO/main/scripts/install.ps1 -OutFile "$env:TEMP\ufc-install.ps1"; & "$env:TEMP\ufc-install.ps1"
+irm https://raw.githubusercontent.com/buildby-anish/universal-file-converter/main/scripts/install.ps1 -OutFile "$env:TEMP\ufc-install.ps1"; & "$env:TEMP\ufc-install.ps1"
 ```
-
-(replace `OWNER/REPO` with your actual GitHub path, e.g.
-`anish/universal-file-converter`)
 
 Each command does everything in one run:
 
