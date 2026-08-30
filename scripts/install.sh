@@ -181,7 +181,7 @@ ensure_repo_checkout() {
     [ -n "$REPO_ROOT" ] && return
     if [ -z "$UFC_REPO" ]; then
         echo "error: no local checkout found and UFC_REPO is unset." >&2
-        echo "Re-run with: UFC_REPO=\"owner/repo\" bash -c \"\$(curl -fsSL <raw-script-url>)\"" >&2
+        echo "Re-run with: UFC_REPO=\"buildby-anish/universal-file-converter\" bash -c \"\$(curl -fsSL <raw-script-url>)\"" >&2
         exit 1
     fi
     ensure_git

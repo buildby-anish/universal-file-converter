@@ -160,7 +160,7 @@ function Ensure-Git {
 function Ensure-RepoCheckout {
     if ($RepoRoot) { return }
     if ([string]::IsNullOrWhiteSpace($UfcRepo)) {
-        Write-Error "No local checkout found and UFC_REPO is unset. Re-run with: `$env:UFC_REPO='owner/repo'; <script invocation>"
+        Write-Error "No local checkout found and UFC_REPO is unset. Re-run with: `$env:UFC_REPO='buildby-anish/universal-file-converter'; <script invocation>"
     }
     Ensure-Git
     $CheckoutDir = Join-Path $env:LOCALAPPDATA "ufc\src"
