@@ -34,10 +34,46 @@ cargo test --workspace
 `PATH` at runtime for docx/odt/pdf-from-office routes — image and
 PDF-text routes have no external runtime dependency.
 
-## Install (macOS / Linux / Windows)
+## Install — a single command, nothing to install first
 
-After pushing this repo to GitHub, edit `UFC_REPO` at the top of
-`scripts/install.sh` and `scripts/install.ps1` to your `owner/repo`, then:
+**Once you've pushed this repo to GitHub** and edited `UFC_REPO` /
+`$UfcRepo` at the top of `scripts/install.sh` and `scripts/install.ps1` to
+your real `owner/repo` (then committed and pushed that edit), anyone can
+install `ufc` with one command — no `git clone` needed first:
+
+```bash
+# macOS / Linux
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/scripts/install.sh)"
+```
+
+```powershell
+# Windows PowerShell
+irm https://raw.githubusercontent.com/OWNER/REPO/main/scripts/install.ps1 -OutFile "$env:TEMP\ufc-install.ps1"; & "$env:TEMP\ufc-install.ps1"
+```
+
+(replace `OWNER/REPO` with your actual GitHub path, e.g.
+`anish/universal-file-converter`)
+
+Each command does everything in one run:
+
+1. Tries to download a prebuilt `ufc` binary from your latest GitHub
+   Release (published by `.github/workflows/release.yml` when you push a
+   `vX.Y.Z` tag) — nothing else needed at all if this succeeds.
+2. If no prebuilt binary is available yet, bootstraps `git` and `Rust`
+   automatically, clones the repo into a small local cache, and builds
+   from source.
+3. Installs LibreOffice automatically (Homebrew on macOS, apt/dnf/pacman/
+   zypper on Linux, winget on Windows) if it isn't already present, so
+   docx/odt/pdf-from-office routes work out of the box too.
+4. Adds the install directory to your PATH, so `ufc` becomes a normal
+   terminal command from anywhere.
+
+You may see your OS's own admin/sudo password prompt if a step needs to
+install something (git, LibreOffice) through a system package manager —
+that's expected, not something the script is asking for itself.
+
+If you'd rather run it from a clone you already have on disk, that still
+works exactly the same way:
 
 ```bash
 # macOS / Linux
@@ -49,12 +85,10 @@ chmod +x scripts/install.sh && ./scripts/install.sh
 .\scripts\install.ps1
 ```
 
-Both scripts try to download a prebuilt binary from your latest GitHub
-Release first (published by `.github/workflows/release.yml` when you push
-a `vX.Y.Z` tag), and transparently fall back to `cargo build --release`
-from source if no matching release asset exists yet. Pass
-`--from-source` (bash) / `-FromSource` (PowerShell) to always build
-locally.
+Flags: `--from-source` / `-FromSource` always builds locally even if a
+prebuilt binary exists; `--skip-libreoffice` / `-SkipLibreOffice` skips
+that step entirely (image and PDF-text routes work fine without
+LibreOffice).
 
 ## Releasing a new version
 
