@@ -11,7 +11,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 authors = ["Universal File Converter Contributors"]
-repository = "https://github.com/example/universal-file-converter"
+repository = "https://github.com/buildby-anish/universal-file-converter"
 
 [workspace.dependencies]
 thiserror = "1.0"

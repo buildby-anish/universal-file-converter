@@ -28,7 +28,7 @@ $ErrorActionPreference = "Stop"
 # EDIT THIS after you push to GitHub, so the prebuilt-binary path (and the
 # standalone/downloaded source-build fallback) can find your repo:
 # "yourname/universal-file-converter".
-$UfcRepo = if ($env:UFC_REPO) { $env:UFC_REPO } else { "CHANGEME/universal-file-converter" }
+$UfcRepo = if ($env:UFC_REPO) { $env:UFC_REPO } else { "buildby-anish/universal-file-converter" }
 
 # Resolve RepoRoot only if this script is actually running from inside a
 # cloned checkout (i.e. ..\Cargo.toml exists next to it). When the script
@@ -106,7 +106,7 @@ function Ensure-LibreOffice {
 # Step 3: ufc itself
 # ---------------------------------------------------------------------------
 function Try-Prebuilt {
-    if ($UfcRepo -eq "CHANGEME/universal-file-converter") { return $false }
+    if ([string]::IsNullOrWhiteSpace($UfcRepo)) { return $false }
 
     $Target = "x86_64-pc-windows-msvc"
     $Asset = "ufc-$Target.zip"
@@ -159,7 +159,7 @@ function Ensure-Git {
 # something to build.
 function Ensure-RepoCheckout {
     if ($RepoRoot) { return }
-    if ($UfcRepo -eq "CHANGEME/universal-file-converter") {
+    if ([string]::IsNullOrWhiteSpace($UfcRepo)) {
         Write-Error "No local checkout found and UFC_REPO is unset. Re-run with: `$env:UFC_REPO='owner/repo'; <script invocation>"
     }
     Ensure-Git

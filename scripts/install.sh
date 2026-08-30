@@ -21,7 +21,7 @@ set -euo pipefail
 # EDIT THIS after you push to GitHub, so the prebuilt-binary path (and the
 # standalone/curled source-build fallback) can find your repo:
 # "yourname/universal-file-converter".
-UFC_REPO="${UFC_REPO:-CHANGEME/universal-file-converter}"
+UFC_REPO="${UFC_REPO:-buildby-anish/universal-file-converter}"
 
 # Resolve REPO_ROOT only if this script is actually running from inside a
 # cloned checkout (i.e. ../Cargo.toml exists next to it). When the script
@@ -124,7 +124,7 @@ detect_target() {
 try_prebuilt() {
     local target="$1"
     [ -z "$target" ] && return 1
-    [ "$UFC_REPO" = "CHANGEME/universal-file-converter" ] && return 1
+    [ -z "$UFC_REPO" ] && return 1
     command -v curl >/dev/null 2>&1 || return 1
 
     local asset="ufc-${target}.tar.gz"
@@ -179,7 +179,7 @@ ensure_git() {
 # reusable cache directory so build_from_source() has something to build.
 ensure_repo_checkout() {
     [ -n "$REPO_ROOT" ] && return
-    if [ "$UFC_REPO" = "CHANGEME/universal-file-converter" ]; then
+    if [ -z "$UFC_REPO" ]; then
         echo "error: no local checkout found and UFC_REPO is unset." >&2
         echo "Re-run with: UFC_REPO=\"owner/repo\" bash -c \"\$(curl -fsSL <raw-script-url>)\"" >&2
         exit 1
