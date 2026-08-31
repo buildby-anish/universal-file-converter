@@ -16,11 +16,11 @@ pub struct PdfAdapter;
 
 const ROUTES: &[(Format, Format)] = &[(Format::Pdf, Format::PlainText), (Format::PlainText, Format::Pdf)];
 
-const PAGE_WIDTH_MM: f64 = 210.0; // A4
-const PAGE_HEIGHT_MM: f64 = 297.0;
-const MARGIN_MM: f64 = 20.0;
-const FONT_SIZE: f64 = 11.0;
-const LINE_HEIGHT_MM: f64 = 6.0;
+const PAGE_WIDTH_MM: f32 = 210.0; // A4
+const PAGE_HEIGHT_MM: f32 = 297.0;
+const MARGIN_MM: f32 = 20.0;
+const FONT_SIZE: f32 = 11.0;
+const LINE_HEIGHT_MM: f32 = 6.0;
 
 impl ConversionAdapter for PdfAdapter {
     fn name(&self) -> &'static str {
@@ -120,7 +120,7 @@ fn text_to_pdf(adapter: &'static str, input: &Path, output: &Path) -> Result<(),
             page_idx += 1;
             line_on_page = 0;
         }
-        let y = PAGE_HEIGHT_MM - MARGIN_MM - (line_on_page as f64) * LINE_HEIGHT_MM;
+        let y = PAGE_HEIGHT_MM - MARGIN_MM - (line_on_page as f32) * LINE_HEIGHT_MM;
         current_layer.use_text(line, FONT_SIZE, Mm(MARGIN_MM), Mm(y), &font);
         line_on_page += 1;
     }

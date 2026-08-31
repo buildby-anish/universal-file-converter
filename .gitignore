@@ -1,0 +1,14 @@
+# Rust build artifacts
+/target/
+
+# Cargo lockfile (optional for binary crates, but we can track Cargo.lock if desired; usually libraries ignore it, binaries track it)
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
