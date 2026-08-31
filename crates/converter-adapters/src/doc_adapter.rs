@@ -29,14 +29,23 @@ const ROUTES: &[(Format, Format)] = &[
 
 impl LibreOfficeAdapter {
     pub fn new() -> Self {
-        // Try common binary names; `which` walks PATH exactly like a shell
-        // would, but without invoking a shell.
+        let mac_candidates = [
+            PathBuf::from("/Applications/LibreOffice.app/Contents/MacOS/soffice"),
+            PathBuf::from("/opt/homebrew/bin/soffice"),
+            PathBuf::from("/opt/homebrew/bin/libreoffice"),
+            PathBuf::from("/usr/local/bin/soffice"),
+            PathBuf::from("/usr/local/bin/libreoffice"),
+        ];
+
         let binary = ["soffice", "libreoffice"]
             .iter()
-            .find_map(|name| which::which(name).ok());
+            .find_map(|name| which::which(name).ok())
+            .or_else(|| mac_candidates.into_iter().find(|p| p.exists()));
+
         Self { binary }
     }
 }
+
 
 impl Default for LibreOfficeAdapter {
     fn default() -> Self {

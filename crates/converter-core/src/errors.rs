@@ -87,7 +87,7 @@ pub enum JobError {
     #[error("refusing to overwrite existing output and collision policy exhausted after {attempts} attempts: {path}")]
     CollisionExhausted { path: PathBuf, attempts: u32 },
 
-    #[error("external tool '{tool}' is not installed or not on PATH")]
+    #[error("external tool '{tool}' is not installed or not on PATH (for Word/Office to PDF conversions, install LibreOffice with: brew install --cask libreoffice)")]
     MissingExternalTool { tool: &'static str },
 
     #[error("external tool '{tool}' exited with non-zero status {code:?}: {stderr}")]
