@@ -13,3 +13,12 @@ lopdf.workspace = true
 pdf-extract.workspace = true
 printpdf = "0.7"
 which = "6.0"
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+toml.workspace = true
+csv.workspace = true
+pulldown-cmark = "0.12"
+
+[dev-dependencies]
+tempfile.workspace = true

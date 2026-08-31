@@ -27,6 +27,12 @@ pub enum Format {
     Docx,
     Odt,
     PlainText,
+    Json,
+    Yaml,
+    Toml,
+    Csv,
+    Markdown,
+    Html,
 }
 
 impl Format {
@@ -43,14 +49,43 @@ impl Format {
             Format::Docx => "docx",
             Format::Odt => "odt",
             Format::PlainText => "txt",
+            Format::Json => "json",
+            Format::Yaml => "yaml",
+            Format::Toml => "toml",
+            Format::Csv => "csv",
+            Format::Markdown => "md",
+            Format::Html => "html",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim().to_lowercase().as_str() {
+            "png" => Some(Format::Png),
+            "jpeg" | "jpg" => Some(Format::Jpeg),
+            "gif" => Some(Format::Gif),
+            "bmp" => Some(Format::Bmp),
+            "webp" => Some(Format::WebP),
+            "tiff" | "tif" => Some(Format::Tiff),
+            "pdf" => Some(Format::Pdf),
+            "zip" => Some(Format::Zip),
+            "docx" => Some(Format::Docx),
+            "odt" => Some(Format::Odt),
+            "txt" | "text" | "plain" => Some(Format::PlainText),
+            "json" => Some(Format::Json),
+            "yaml" | "yml" => Some(Format::Yaml),
+            "toml" => Some(Format::Toml),
+            "csv" => Some(Format::Csv),
+            "md" | "markdown" => Some(Format::Markdown),
+            "html" | "htm" => Some(Format::Html),
+            _ => None,
         }
     }
 }
 
 /// Number of bytes read for signature sniffing. Large enough to cover the
 /// longest signatures we check (RIFF/WEBP needs 12) plus headroom for the
-/// ZIP-container sub-format probe.
-const SNIFF_WINDOW: usize = 512;
+/// ZIP-container sub-format probe and text structure analysis.
+const SNIFF_WINDOW: usize = 1024;
 
 /// Read the leading bytes of `path` and classify its format by signature.
 ///
@@ -112,10 +147,96 @@ pub fn sniff_bytes(buf: &[u8]) -> Option<Format> {
         // than claiming certainty from the outer signature alone.
         return Some(classify_zip_container(buf));
     }
-    if buf.iter().take(256).all(|&b| b == 0x09 || b == 0x0A || b == 0x0D || (0x20..=0x7E).contains(&b) || b >= 0x80) {
-        return Some(Format::PlainText);
+
+    // Check if the buffer is text-like (UTF-8 valid and contains mostly printable/whitespace chars)
+    if let Ok(text) = std::str::from_utf8(buf) {
+        if is_printable_text(text) {
+            return Some(classify_text(text));
+        }
+    } else if buf.iter().take(256).all(|&b| b == 0x09 || b == 0x0A || b == 0x0D || (0x20..=0x7E).contains(&b) || b >= 0x80) {
+        let lossy = String::from_utf8_lossy(buf);
+        return Some(classify_text(&lossy));
     }
+
     None
+}
+
+fn is_printable_text(text: &str) -> bool {
+    let non_control_count = text.chars().filter(|c| !c.is_control() || *c == '\n' || *c == '\r' || *c == '\t').count();
+    let total_count = text.chars().count();
+    total_count > 0 && (non_control_count as f32 / total_count as f32) > 0.95
+}
+
+fn classify_text(text: &str) -> Format {
+    let trimmed = text.trim();
+    let lower = trimmed.to_lowercase();
+
+    // HTML detection
+    if lower.starts_with("<!doctype html")
+        || lower.starts_with("<html")
+        || lower.starts_with("<head")
+        || lower.starts_with("<body")
+        || lower.starts_with("<?xml")
+        || (lower.contains("<html") && lower.contains("</html>"))
+        || (lower.contains("<div") && lower.contains("</div>"))
+    {
+        return Format::Html;
+    }
+
+    // JSON detection: starts with { or [ and contains string quotes or valid syntax
+    if (trimmed.starts_with('{') && (trimmed.contains(':') || trimmed.ends_with('}')))
+        || (trimmed.starts_with('[') && (trimmed.contains(',') || trimmed.ends_with(']')))
+    {
+        return Format::Json;
+    }
+
+    // YAML detection: starts with --- or list of objects or key: value pairs
+    if trimmed.starts_with("---")
+        || (trimmed.starts_with("- ") && trimmed.contains(": "))
+        || (trimmed.lines().take(5).all(|l| {
+            let lt = l.trim();
+            lt.is_empty() || lt.starts_with('#') || lt.starts_with("- ") || (lt.contains(": ") && !lt.starts_with("http:") && !lt.starts_with("https:"))
+        }) && trimmed.contains(": ") && !trimmed.contains(" = ") && !lower.starts_with('<'))
+    {
+        return Format::Yaml;
+    }
+
+    // TOML detection: table header like [table] or key = "val"
+    if (trimmed.starts_with('[') && trimmed.lines().next().map_or(false, |l| l.trim().ends_with(']') && !l.contains(':') && !l.contains(',')))
+        || (trimmed.lines().any(|l| l.contains(" = ") || (l.contains('=') && !l.contains(';'))))
+    {
+        // distinguish TOML key = "val" vs other formats
+        if trimmed.lines().take(5).all(|l| {
+            let lt = l.trim();
+            lt.is_empty() || lt.starts_with('#') || lt.starts_with('[') || lt.contains('=')
+        }) && trimmed.contains('=') {
+            return Format::Toml;
+        }
+    }
+
+    // Markdown detection: markdown headers, list markers, code fences
+    if trimmed.starts_with("# ")
+        || trimmed.starts_with("## ")
+        || trimmed.starts_with("### ")
+        || trimmed.starts_with("```")
+        || trimmed.starts_with("> ")
+        || (trimmed.starts_with("- ") && trimmed.lines().count() > 1 && !trimmed.contains(':'))
+        || (trimmed.starts_with("* ") && trimmed.lines().count() > 1)
+    {
+        return Format::Markdown;
+    }
+
+    // CSV detection: check for multiple lines with matching comma counts > 0
+    let csv_lines: Vec<&str> = trimmed.lines().filter(|l| !l.trim().is_empty()).take(10).collect();
+    if csv_lines.len() >= 2 {
+        let first_commas = csv_lines[0].matches(',').count();
+        if first_commas > 0 && csv_lines.iter().skip(1).all(|l| l.matches(',').count() == first_commas) {
+            return Format::Csv;
+        }
+    }
+
+
+    Format::PlainText
 }
 
 /// Distinguish OOXML (docx) vs ODF (odt) vs a bare ZIP by looking for their
@@ -158,8 +279,45 @@ mod tests {
     }
 
     #[test]
+    fn detects_json() {
+        let json = b"{\n  \"name\": \"ufc\",\n  \"version\": 1\n}";
+        assert_eq!(sniff_bytes(json), Some(Format::Json));
+    }
+
+    #[test]
+    fn detects_yaml() {
+        let yaml = b"---\nname: ufc\nversion: 1\n";
+        assert_eq!(sniff_bytes(yaml), Some(Format::Yaml));
+    }
+
+    #[test]
+    fn detects_toml() {
+        let toml = b"[package]\nname = \"ufc\"\nversion = \"0.1.0\"\n";
+        assert_eq!(sniff_bytes(toml), Some(Format::Toml));
+    }
+
+    #[test]
+    fn detects_csv() {
+        let csv = b"name,age,city\nAlice,30,Seattle\nBob,25,Austin\n";
+        assert_eq!(sniff_bytes(csv), Some(Format::Csv));
+    }
+
+    #[test]
+    fn detects_html() {
+        let html = b"<!DOCTYPE html>\n<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>";
+        assert_eq!(sniff_bytes(html), Some(Format::Html));
+    }
+
+    #[test]
+    fn detects_markdown() {
+        let md = b"# Universal File Converter\n\nThis is a documentation file.\n";
+        assert_eq!(sniff_bytes(md), Some(Format::Markdown));
+    }
+
+    #[test]
     fn unknown_signature_returns_none() {
-        let garbage = [0x00, 0x01, 0x02, 0x03];
+        let garbage = [0x00, 0x01, 0x02, 0x03, 0x04];
         assert_eq!(sniff_bytes(&garbage), None);
     }
 }
+

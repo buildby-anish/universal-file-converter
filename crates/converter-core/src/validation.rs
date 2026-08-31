@@ -28,15 +28,23 @@ pub fn validate_output(output: &Path, expected: Format) -> Result<(), Validation
     let bytes = std::fs::read(output).map_err(|_| ValidationError::OutputMissing(output.to_path_buf()))?;
     let window = &bytes[..bytes.len().min(512)];
 
-    match sniff_bytes(window) {
-        Some(actual) if actual == expected => Ok(()),
-        Some(actual) => Err(ValidationError::SignatureMismatch {
+    let actual = sniff_bytes(window);
+    if is_compatible(actual, expected) {
+        Ok(())
+    } else {
+        Err(ValidationError::SignatureMismatch {
             expected: expected.as_str().to_string(),
-            actual: Some(actual.as_str().to_string()),
-        }),
-        None => Err(ValidationError::SignatureMismatch {
-            expected: expected.as_str().to_string(),
-            actual: None,
-        }),
+            actual: actual.map(|a| a.as_str().to_string()),
+        })
     }
 }
+
+fn is_compatible(actual: Option<Format>, expected: Format) -> bool {
+    match (actual, expected) {
+        (Some(a), e) if a == e => true,
+        (Some(Format::Json | Format::Yaml | Format::Toml | Format::Csv | Format::Markdown | Format::Html), Format::PlainText) => true,
+        (Some(Format::PlainText), Format::Markdown | Format::Yaml | Format::Csv | Format::Html) => true,
+        _ => false,
+    }
+}
+

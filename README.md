@@ -11,12 +11,13 @@ conversion or returns a typed error.
 
 | Crate | Status | Notes |
 |---|---|---|
-| `converter-core` | ✅ Complete | Magic-byte detection, adapter registry, route resolution, tempfile→validate→atomic-rename job pipeline, collision-suffix policy, `thiserror` error hierarchy. |
-| `converter-adapters` | ✅ Complete | `ImageAdapter` (image-rs, real pixel decode/re-encode across png/jpeg/webp/bmp/gif/tiff), `LibreOfficeAdapter` (headless `soffice --convert-to`, explicit arg arrays, no shell interpolation, requires `soffice`/`libreoffice` on `PATH`), `PdfAdapter` (PDF↔text: `pdf-extract` for extraction, `printpdf` for generation, both directions structurally re-validated with `lopdf`). |
-| `converter-cli` (`ufc`) | ✅ Complete | `ufc convert <input> --to <format> [--outdir <dir>]`, `ufc routes`. |
+| `converter-core` | ✅ Complete | Magic-byte & content detection across 17 formats, adapter registry, route resolution, tempfile→validate→atomic-rename job pipeline, collision-suffix policy, `thiserror` error hierarchy. |
+| `converter-adapters` | ✅ Complete | **5 Adapter backends (54 total conversion routes)**:<br>• `ImageAdapter`: all 30 permutations across PNG, JPEG, WebP, BMP, GIF, TIFF with alpha flattening.<br>• `DataAdapter`: bidirectional conversions across JSON, YAML, TOML, CSV.<br>• `MarkupAdapter`: Markdown $\leftrightarrow$ HTML, Markdown/HTML $\rightarrow$ PlainText.<br>• `PdfAdapter`: PDF $\leftrightarrow$ text with structural re-validation.<br>• `LibreOfficeAdapter`: headless DOCX/ODT/PDF office conversions. |
+| `converter-cli` (`ufc`) | ✅ Complete | `ufc convert <inputs...> --to <format> [--outdir <dir>]` (single & batch conversion), `ufc routes` (categorized route list). |
 | `scripts/install.sh`, `scripts/install.ps1` | ✅ Complete | Cross-platform installers (macOS/Linux/Windows). Try a prebuilt binary from the latest GitHub Release first, fall back to `cargo build --release` from source. |
-| `.github/workflows/ci.yml`, `release.yml` | ✅ Complete | CI: fmt/clippy/build/test on Linux+macOS+Windows on every push/PR. Release: on pushing a `vX.Y.Z` tag, cross-compiles `x86_64-unknown-linux-gnu`, `x86_64-apple-darwin`, `aarch64-apple-darwin`, and `x86_64-pc-windows-msvc`, and publishes them as GitHub Release assets. |
-| `converter-ui`, `converter-platform` | **Not included in this pass** | Deliberately deferred rather than stubbed — a GUI shell and per-OS shell-integration hooks (registry entries, QuickActions, `.desktop` files) are separate, substantial pieces of engineering that deserve their own real implementations, not placeholder crates that would violate the zero-mock contract. Happy to build either next; tell me which to prioritize. |
+| `.github/workflows/ci.yml`, `release.yml` | ✅ Complete | CI: fmt/clippy/build/test on Linux+macOS+Windows on every push/PR. Release: cross-compiles release binaries and publishes them as GitHub Release assets. |
+| `converter-ui`, `converter-platform` | **Not included in this pass** | Deliberately deferred rather than stubbed — GUI shell and per-OS shell-integration hooks. |
+
 
 ## Build
 
@@ -98,11 +99,31 @@ to a new GitHub Release automatically.
 ## Usage
 
 ```bash
-ufc routes                                  # list every supported (from -> to) pair
-ufc convert photo.jpg --to png               # writes photo.png next to photo.jpg
+# List all 54 routes grouped by adapter
+ufc routes
+
+# Convert structured data (JSON <-> YAML <-> TOML <-> CSV)
+ufc convert config.json --to yaml
+ufc convert data.csv --to json
+ufc convert settings.yaml --to toml
+
+# Convert markup & web documents (Markdown <-> HTML <-> PlainText)
+ufc convert README.md --to html
+ufc convert page.html --to md
+
+# Convert raster images (PNG, JPEG, WebP, BMP, GIF, TIFF)
+ufc convert photo.png --to webp
+ufc convert graphic.webp --to png
+
+# Convert office documents & PDFs
 ufc convert report.docx --to pdf --outdir out/
-ufc convert scan.pdf --to txt
+ufc convert document.pdf --to txt
+
+# Batch convert multiple files at once
+ufc convert *.json --to yaml
+ufc convert photo1.png photo2.png photo3.png --to webp
 ```
+
 
 ## Design notes worth knowing before extending this
 

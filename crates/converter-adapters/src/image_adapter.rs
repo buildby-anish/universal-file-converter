@@ -15,22 +15,45 @@ pub struct ImageAdapter;
 /// (source, target) pairs this adapter advertises. All are backed by
 /// genuine codecs enabled in the workspace `image` feature set
 /// (png, jpeg, webp, bmp, gif, tiff).
+/// (source, target) pairs this adapter advertises. All 30 permutations of
+/// (Png, Jpeg, Gif, Bmp, WebP, Tiff) backed by genuine codecs in `image-rs`.
 const ROUTES: &[(Format, Format)] = &[
+    // From PNG
     (Format::Png, Format::Jpeg),
     (Format::Png, Format::WebP),
     (Format::Png, Format::Bmp),
     (Format::Png, Format::Gif),
     (Format::Png, Format::Tiff),
+    // From JPEG
     (Format::Jpeg, Format::Png),
     (Format::Jpeg, Format::WebP),
     (Format::Jpeg, Format::Bmp),
+    (Format::Jpeg, Format::Gif),
     (Format::Jpeg, Format::Tiff),
+    // From WebP
+    (Format::WebP, Format::Png),
+    (Format::WebP, Format::Jpeg),
+    (Format::WebP, Format::Bmp),
+    (Format::WebP, Format::Gif),
+    (Format::WebP, Format::Tiff),
+    // From BMP
     (Format::Bmp, Format::Png),
     (Format::Bmp, Format::Jpeg),
+    (Format::Bmp, Format::WebP),
+    (Format::Bmp, Format::Gif),
+    (Format::Bmp, Format::Tiff),
+    // From GIF
     (Format::Gif, Format::Png),
+    (Format::Gif, Format::Jpeg),
+    (Format::Gif, Format::WebP),
+    (Format::Gif, Format::Bmp),
+    (Format::Gif, Format::Tiff),
+    // From TIFF
     (Format::Tiff, Format::Png),
     (Format::Tiff, Format::Jpeg),
-    (Format::WebP, Format::Png),
+    (Format::Tiff, Format::WebP),
+    (Format::Tiff, Format::Bmp),
+    (Format::Tiff, Format::Gif),
 ];
 
 fn to_image_format(f: Format) -> Option<ImageFormat> {
@@ -68,10 +91,7 @@ impl ConversionAdapter for ImageAdapter {
             message: format!("format '{}' is not a codec this adapter drives", to.as_str()),
         })?;
 
-        // Decode using the format we already determined via magic-byte
-        // sniffing (not `image::open`, which re-guesses from the
-        // extension — we don't trust extensions anywhere in this
-        // pipeline).
+        // Decode using the format we already determined via magic-byte sniffing
         let bytes = std::fs::read(input).map_err(|e| JobError::Io {
             path: input.to_path_buf(),
             source: e,
@@ -87,7 +107,16 @@ impl ConversionAdapter for ImageAdapter {
         // JPEG has no alpha channel; flatten onto white rather than let the
         // encoder silently drop/garble transparency.
         let img = if dst_format == ImageFormat::Jpeg {
-            image::DynamicImage::ImageRgb8(img.to_rgb8())
+            let rgba = img.to_rgba8();
+            let mut rgb = image::RgbImage::new(rgba.width(), rgba.height());
+            for (x, y, pixel) in rgba.enumerate_pixels() {
+                let alpha = pixel[3] as f32 / 255.0;
+                let r = ((pixel[0] as f32 * alpha) + 255.0 * (1.0 - alpha)).round() as u8;
+                let g = ((pixel[1] as f32 * alpha) + 255.0 * (1.0 - alpha)).round() as u8;
+                let b = ((pixel[2] as f32 * alpha) + 255.0 * (1.0 - alpha)).round() as u8;
+                rgb.put_pixel(x, y, image::Rgb([r, g, b]));
+            }
+            image::DynamicImage::ImageRgb8(rgb)
         } else {
             img
         };
@@ -102,3 +131,4 @@ impl ConversionAdapter for ImageAdapter {
         Ok(())
     }
 }
+
