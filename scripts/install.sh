@@ -251,4 +251,12 @@ esac
 log "Done. Verifying:"
 "$INSTALL_DIR/$BIN_NAME" routes
 echo ""
+
+if [ "$(uname)" = "Darwin" ]; then
+    if [ -n "$REPO_ROOT" ] && [ -f "$REPO_ROOT/scripts/setup-finder-quick-action.sh" ]; then
+        bash "$REPO_ROOT/scripts/setup-finder-quick-action.sh"
+    fi
+fi
+
 log "ufc is installed and ready to use in this terminal. New terminals will pick it up automatically too."
+
