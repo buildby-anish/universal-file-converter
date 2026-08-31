@@ -179,51 +179,47 @@ fn classify_text(text: &str) -> Format {
         || lower.starts_with("<?xml")
         || (lower.contains("<html") && lower.contains("</html>"))
         || (lower.contains("<div") && lower.contains("</div>"))
+        || (lower.contains("<p>") && lower.contains("</p>"))
     {
         return Format::Html;
     }
 
-    // JSON detection: starts with { or [ and contains string quotes or valid syntax
-    if (trimmed.starts_with('{') && (trimmed.contains(':') || trimmed.ends_with('}')))
-        || (trimmed.starts_with('[') && (trimmed.contains(',') || trimmed.ends_with(']')))
+    // JSON detection: starts with { or [ and ends with matching closing bracket or contains pairs
+    if (trimmed.starts_with('{') && trimmed.ends_with('}'))
+        || (trimmed.starts_with('[') && trimmed.ends_with(']'))
+        || (trimmed.starts_with('{') && trimmed.contains(':'))
+        || (trimmed.starts_with('[') && trimmed.contains(','))
     {
         return Format::Json;
     }
 
-    // YAML detection: starts with --- or list of objects or key: value pairs
-    if trimmed.starts_with("---")
-        || (trimmed.starts_with("- ") && trimmed.contains(": "))
-        || (trimmed.lines().take(5).all(|l| {
-            let lt = l.trim();
-            lt.is_empty() || lt.starts_with('#') || lt.starts_with("- ") || (lt.contains(": ") && !lt.starts_with("http:") && !lt.starts_with("https:"))
-        }) && trimmed.contains(": ") && !trimmed.contains(" = ") && !lower.starts_with('<'))
-    {
-        return Format::Yaml;
-    }
-
-    // TOML detection: table header like [table] or key = "val"
-    if (trimmed.starts_with('[') && trimmed.lines().next().map_or(false, |l| l.trim().ends_with(']') && !l.contains(':') && !l.contains(',')))
-        || (trimmed.lines().any(|l| l.contains(" = ") || (l.contains('=') && !l.contains(';'))))
-    {
-        // distinguish TOML key = "val" vs other formats
-        if trimmed.lines().take(5).all(|l| {
-            let lt = l.trim();
-            lt.is_empty() || lt.starts_with('#') || lt.starts_with('[') || lt.contains('=')
-        }) && trimmed.contains('=') {
-            return Format::Toml;
-        }
-    }
-
-    // Markdown detection: markdown headers, list markers, code fences
+    // Markdown detection (check before YAML if has markdown headings or blockquotes)
     if trimmed.starts_with("# ")
         || trimmed.starts_with("## ")
         || trimmed.starts_with("### ")
+        || trimmed.starts_with("#### ")
         || trimmed.starts_with("```")
         || trimmed.starts_with("> ")
-        || (trimmed.starts_with("- ") && trimmed.lines().count() > 1 && !trimmed.contains(':'))
-        || (trimmed.starts_with("* ") && trimmed.lines().count() > 1)
     {
         return Format::Markdown;
+    }
+
+    // TOML detection: table header like [table] or [[table]] or key = value
+    if (trimmed.starts_with('[') && trimmed.lines().next().map_or(false, |l| l.trim().ends_with(']') && !l.contains(':') && !l.contains(',')))
+        || (trimmed.lines().any(|l| l.contains(" = ") || (l.contains('=') && !l.contains(';'))) && !lower.starts_with('<'))
+    {
+        return Format::Toml;
+    }
+
+    // YAML detection: starts with --- or list item with colon or key: mapping lines
+    if trimmed.starts_with("---")
+        || (trimmed.starts_with("- ") && (trimmed.contains(':') || trimmed.lines().count() > 1))
+        || (trimmed.lines().any(|l| {
+            let lt = l.trim();
+            !lt.starts_with('#') && (lt.contains(": ") || (lt.ends_with(':') && !lt.starts_with("http")))
+        }) && !trimmed.contains(" = ") && !lower.starts_with('<'))
+    {
+        return Format::Yaml;
     }
 
     // CSV detection: check for multiple lines with matching comma counts > 0
@@ -235,9 +231,16 @@ fn classify_text(text: &str) -> Format {
         }
     }
 
+    // Markdown list / formatting check
+    if (trimmed.starts_with("- ") && !trimmed.contains(':'))
+        || (trimmed.starts_with("* ") && !trimmed.contains(':'))
+    {
+        return Format::Markdown;
+    }
 
     Format::PlainText
 }
+
 
 /// Distinguish OOXML (docx) vs ODF (odt) vs a bare ZIP by looking for their
 /// characteristic first-entry file names, which both formats place near the

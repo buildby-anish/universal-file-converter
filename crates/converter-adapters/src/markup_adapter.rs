@@ -17,6 +17,8 @@ const ROUTES: &[(Format, Format)] = &[
     (Format::Markdown, Format::PlainText),
     (Format::Html, Format::Markdown),
     (Format::Html, Format::PlainText),
+    (Format::PlainText, Format::Html),
+    (Format::PlainText, Format::Markdown),
 ];
 
 impl ConversionAdapter for MarkupAdapter {
@@ -35,11 +37,13 @@ impl ConversionAdapter for MarkupAdapter {
         })?;
 
         let result = match (from, to) {
-            (Format::Markdown, Format::Html) => markdown_to_html(&content),
+            (Format::Markdown | Format::PlainText, Format::Html) => markdown_to_html(&content),
             (Format::Markdown, Format::PlainText) => markdown_to_plain_text(&content),
             (Format::Html, Format::Markdown) => html_to_markdown(&content),
             (Format::Html, Format::PlainText) => html_to_plain_text(&content),
+            (Format::PlainText, Format::Markdown) => content,
             _ => {
+
                 return Err(JobError::AdapterFailure {
                     adapter: self.name(),
                     input: input.to_path_buf(),
@@ -161,6 +165,7 @@ fn html_to_plain_text(html_str: &str) -> String {
 fn html_to_markdown(html_str: &str) -> String {
     let mut out = String::new();
     let mut in_tag = false;
+    let mut in_script_or_style = false;
     let mut tag_buffer = String::new();
 
     let mut chars = html_str.chars().peekable();
@@ -173,49 +178,56 @@ fn html_to_markdown(html_str: &str) -> String {
         if c == '>' && in_tag {
             in_tag = false;
             let tag = tag_buffer.trim().to_lowercase();
-            if tag == "h1" {
-                if !out.ends_with("\n\n") { out.push_str("\n\n"); }
-                out.push_str("# ");
-            } else if tag == "h2" {
-                if !out.ends_with("\n\n") { out.push_str("\n\n"); }
-                out.push_str("## ");
-            } else if tag == "h3" {
-                if !out.ends_with("\n\n") { out.push_str("\n\n"); }
-                out.push_str("### ");
-            } else if tag == "h4" {
-                if !out.ends_with("\n\n") { out.push_str("\n\n"); }
-                out.push_str("#### ");
-            } else if tag == "p" || tag == "div" {
-                if !out.ends_with("\n\n") { out.push_str("\n\n"); }
-            } else if tag == "/p" || tag == "/h1" || tag == "/h2" || tag == "/h3" || tag == "/h4" {
-                out.push('\n');
-            } else if tag == "br" {
-                out.push('\n');
-            } else if tag == "b" || tag == "strong" || tag == "/b" || tag == "/strong" {
-                out.push_str("**");
-            } else if tag == "i" || tag == "em" || tag == "/i" || tag == "/em" {
-                out.push('*');
-            } else if tag == "code" || tag == "/code" {
-                out.push('`');
-            } else if tag == "pre" {
-                out.push_str("\n```\n");
-            } else if tag == "/pre" {
-                out.push_str("\n```\n");
-            } else if tag == "li" {
-                out.push_str("\n- ");
-            } else if tag == "hr" {
-                out.push_str("\n\n---\n\n");
+            if tag == "script" || tag == "style" || tag == "head" {
+                in_script_or_style = true;
+            } else if tag == "/script" || tag == "/style" || tag == "/head" {
+                in_script_or_style = false;
+            } else if !in_script_or_style {
+                if tag == "h1" {
+                    if !out.ends_with("\n\n") { out.push_str("\n\n"); }
+                    out.push_str("# ");
+                } else if tag == "h2" {
+                    if !out.ends_with("\n\n") { out.push_str("\n\n"); }
+                    out.push_str("## ");
+                } else if tag == "h3" {
+                    if !out.ends_with("\n\n") { out.push_str("\n\n"); }
+                    out.push_str("### ");
+                } else if tag == "h4" {
+                    if !out.ends_with("\n\n") { out.push_str("\n\n"); }
+                    out.push_str("#### ");
+                } else if tag == "p" || tag == "div" {
+                    if !out.ends_with("\n\n") { out.push_str("\n\n"); }
+                } else if tag == "/p" || tag == "/h1" || tag == "/h2" || tag == "/h3" || tag == "/h4" {
+                    out.push('\n');
+                } else if tag == "br" {
+                    out.push('\n');
+                } else if tag == "b" || tag == "strong" || tag == "/b" || tag == "/strong" {
+                    out.push_str("**");
+                } else if tag == "i" || tag == "em" || tag == "/i" || tag == "/em" {
+                    out.push('*');
+                } else if tag == "code" || tag == "/code" {
+                    out.push('`');
+                } else if tag == "pre" {
+                    out.push_str("\n```\n");
+                } else if tag == "/pre" {
+                    out.push_str("\n```\n");
+                } else if tag == "li" {
+                    out.push_str("\n- ");
+                } else if tag == "hr" {
+                    out.push_str("\n\n---\n\n");
+                }
             }
             continue;
         }
         if in_tag {
             tag_buffer.push(c);
-        } else {
+        } else if !in_script_or_style {
             out.push(c);
         }
     }
 
     let decoded = decode_html_entities(&out);
+
     // Normalize excessive newlines
     let mut cleaned = String::new();
     let mut consecutive_newlines = 0;

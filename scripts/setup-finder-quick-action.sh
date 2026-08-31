@@ -106,14 +106,25 @@ cat <<'EOF' > "$CONTENTS_DIR/document.wflow"
 				<key>ActionParameters</key>
 				<dict>
 					<key>COMMAND_STRING</key>
-					<string>export PATH="/opt/homebrew/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+					<string>export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 
-if ! command -v ufc &gt;/dev/null 2&gt;&amp;1; then
-    osascript -e 'display dialog "ufc binary not found. Please install UFC first." buttons {"OK"} default button "OK" with icon stop'
+UFC_BIN=""
+for candidate in "/opt/homebrew/bin/ufc" "/usr/local/bin/ufc" "$HOME/.cargo/bin/ufc" "$HOME/.local/bin/ufc"; do
+    if [ -x "$candidate" ]; then
+        UFC_BIN="$candidate"
+        break
+    fi
+done
+if [ -z "$UFC_BIN" ] && command -v ufc &gt;/dev/null 2&gt;&amp;1; then
+    UFC_BIN="$(command -v ufc)"
+fi
+
+if [ -z "$UFC_BIN" ]; then
+    osascript -e 'display dialog "ufc binary was not found. Please install Universal File Converter first." buttons {"OK"} default button "OK" with icon stop'
     exit 1
 fi
 
-TARGET_FORMAT=$(osascript &lt;&lt;'APPLESCRIPT'
+RAW_FORMAT=$(osascript &lt;&lt;'APPLESCRIPT'
 set formatList to {"webp", "png", "jpeg", "pdf", "txt", "yaml", "json", "toml", "csv", "html", "md", "docx", "Other..."}
 set chosen to choose from list formatList with title "Universal File Converter" with prompt "Select target format:" default items {"webp"}
 if chosen is false then
@@ -129,29 +140,37 @@ end if
 APPLESCRIPT
 )
 
+TARGET_FORMAT=$(echo "$RAW_FORMAT" | tr -d '\r\n[:space:]')
+
 if [ "$TARGET_FORMAT" = "CANCELLED" ] || [ -z "$TARGET_FORMAT" ]; then
     exit 0
 fi
 
 SUCCESS_COUNT=0
 FAIL_COUNT=0
+FAIL_LOG=""
 
 for f in "$@"; do
     if [ -f "$f" ]; then
-        if ufc convert "$f" --to "$TARGET_FORMAT"; then
+        ERR_FILE=$(mktemp)
+        if "$UFC_BIN" convert "$f" --to "$TARGET_FORMAT" &gt;"$ERR_FILE" 2&gt;&amp;1; then
             ((SUCCESS_COUNT++))
         else
             ((FAIL_COUNT++))
+            ERR_MSG=$(cat "$ERR_FILE" | head -n 2 | tr '"' "'")
+            FAIL_LOG="${FAIL_LOG}\n• $(basename "$f"): ${ERR_MSG}"
         fi
+        rm -f "$ERR_FILE"
     fi
 done
 
 if [ "$FAIL_COUNT" -eq 0 ]; then
-    osascript -e "display notification \"Converted $SUCCESS_COUNT file(s) to $TARGET_FORMAT successfully.\" with title \"UFC Conversion Complete\""
+    osascript -e "display notification \"Converted $SUCCESS_COUNT file(s) to $TARGET_FORMAT successfully.\" with title \"UFC Complete\""
 else
-    osascript -e "display alert \"UFC Conversion Result\" message \"$SUCCESS_COUNT converted, $FAIL_COUNT failed.\" as warning"
+    osascript -e "display alert \"UFC Conversion Notice\" message \"$SUCCESS_COUNT converted, $FAIL_COUNT failed.${FAIL_LOG}\" as warning"
 fi
 </string>
+
 					<key>CheckedForUserDefaultShell</key>
 					<true/>
 					<key>inputMethod</key>

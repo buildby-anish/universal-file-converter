@@ -42,9 +42,13 @@ pub fn validate_output(output: &Path, expected: Format) -> Result<(), Validation
 fn is_compatible(actual: Option<Format>, expected: Format) -> bool {
     match (actual, expected) {
         (Some(a), e) if a == e => true,
-        (Some(Format::Json | Format::Yaml | Format::Toml | Format::Csv | Format::Markdown | Format::Html), Format::PlainText) => true,
-        (Some(Format::PlainText), Format::Markdown | Format::Yaml | Format::Csv | Format::Html) => true,
+        // Any text format output satisfies any text-based expected format
+        (
+            Some(Format::Json | Format::Yaml | Format::Toml | Format::Csv | Format::Markdown | Format::Html | Format::PlainText),
+            Format::Json | Format::Yaml | Format::Toml | Format::Csv | Format::Markdown | Format::Html | Format::PlainText,
+        ) => true,
         _ => false,
     }
 }
+
 

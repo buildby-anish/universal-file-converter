@@ -28,6 +28,10 @@ const ROUTES: &[(Format, Format)] = &[
     (Format::Csv, Format::Json),
     (Format::Csv, Format::Yaml),
     (Format::Csv, Format::Toml),
+    (Format::PlainText, Format::Json),
+    (Format::PlainText, Format::Yaml),
+    (Format::PlainText, Format::Toml),
+    (Format::PlainText, Format::Csv),
 ];
 
 impl ConversionAdapter for DataAdapter {
@@ -74,6 +78,25 @@ impl ConversionAdapter for DataAdapter {
                 })?
             }
             Format::Csv => csv_to_value(input, self.name(), output)?,
+            Format::PlainText => {
+                // Auto-detect structured format from plain text
+                if let Ok(v) = serde_json::from_str::<Value>(&text) {
+                    v
+                } else if let Ok(v) = serde_yaml::from_str::<Value>(&text) {
+                    v
+                } else if let Ok(toml_val) = toml::from_str::<toml::Value>(&text) {
+                    serde_json::to_value(toml_val).unwrap_or(Value::Null)
+                } else if let Ok(v) = csv_to_value(input, self.name(), output) {
+                    v
+                } else {
+                    return Err(JobError::AdapterFailure {
+                        adapter: self.name(),
+                        input: input.to_path_buf(),
+                        output: output.to_path_buf(),
+                        message: "plain text file does not contain valid JSON, YAML, TOML, or CSV data".to_string(),
+                    });
+                }
+            }
             _ => {
                 return Err(JobError::AdapterFailure {
                     adapter: self.name(),
@@ -83,6 +106,7 @@ impl ConversionAdapter for DataAdapter {
                 })
             }
         };
+
 
         // 2. Encode value to destination format
         let out_text = match to {
