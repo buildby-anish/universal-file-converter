@@ -106,7 +106,7 @@ cat <<'EOF' > "$CONTENTS_DIR/document.wflow"
 				<key>ActionParameters</key>
 				<dict>
 					<key>COMMAND_STRING</key>
-					<string>export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+					<string><![CDATA[export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 
 UFC_BIN=""
 for candidate in "/opt/homebrew/bin/ufc" "/usr/local/bin/ufc" "$HOME/.cargo/bin/ufc" "$HOME/.local/bin/ufc"; do
@@ -115,7 +115,7 @@ for candidate in "/opt/homebrew/bin/ufc" "/usr/local/bin/ufc" "$HOME/.cargo/bin/
         break
     fi
 done
-if [ -z "$UFC_BIN" ] && command -v ufc &gt;/dev/null 2&gt;&amp;1; then
+if [ -z "$UFC_BIN" ] && command -v ufc >/dev/null 2>&1; then
     UFC_BIN="$(command -v ufc)"
 fi
 
@@ -124,7 +124,7 @@ if [ -z "$UFC_BIN" ]; then
     exit 1
 fi
 
-RAW_FORMAT=$(osascript &lt;&lt;'APPLESCRIPT'
+RAW_FORMAT=$(osascript <<'APPLESCRIPT'
 set formatList to {"webp", "png", "jpeg", "pdf", "txt", "yaml", "json", "toml", "csv", "html", "md", "docx", "Other..."}
 set chosen to choose from list formatList with title "Universal File Converter" with prompt "Select target format:" default items {"webp"}
 if chosen is false then
@@ -153,7 +153,7 @@ FAIL_LOG=""
 for f in "$@"; do
     if [ -f "$f" ]; then
         ERR_FILE=$(mktemp)
-        if "$UFC_BIN" convert "$f" --to "$TARGET_FORMAT" &gt;"$ERR_FILE" 2&gt;&amp;1; then
+        if "$UFC_BIN" convert "$f" --to "$TARGET_FORMAT" >"$ERR_FILE" 2>&1; then
             ((SUCCESS_COUNT++))
         else
             ((FAIL_COUNT++))
@@ -169,8 +169,7 @@ if [ "$FAIL_COUNT" -eq 0 ]; then
 else
     osascript -e "display alert \"UFC Conversion Notice\" message \"$SUCCESS_COUNT converted, $FAIL_COUNT failed.${FAIL_LOG}\" as warning"
 fi
-</string>
-
+]]></string>
 					<key>CheckedForUserDefaultShell</key>
 					<true/>
 					<key>inputMethod</key>
@@ -328,8 +327,13 @@ EOF
 
 chmod -R 755 "$TARGET_DIR"
 
+# Verify plists
+plutil -lint "$CONTENTS_DIR/document.wflow"
+plutil -lint "$CONTENTS_DIR/Info.plist"
+
 # Refresh macOS Services cache
 /System/Library/CoreServices/pbs -flush 2>/dev/null || true
 
 echo "==> Quick Action installed successfully to $TARGET_DIR!"
 echo "==> You can now right-click any file in Finder and select 'Quick Actions' -> 'Convert with UFC'."
+
